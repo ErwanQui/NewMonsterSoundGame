@@ -19,20 +19,27 @@ class PlayerExperience extends AbstractExperience {
 // require plugins if needed
     this.audioBufferLoader = this.require('audio-buffer-loader');
     this.ambisonics = require('ambisonics');
-
+    console.log(this.audioBufferLoader)
     this.initialising = true;
+    this.order = 3;
+
+
+    this.audioContext = new AudioContext();
 
     this.monsters = {
       List: [],
       LifeTime: 10,
       Speed: 10,
       SpawnRate: 10,
-      Sounds: null,
-      SoundOut: null,
+      Scream: null,
+      OutToRotator: null,
     }
     this.azimutAim = 180;
-    this.azimutPrecision = 20;
+    this.azimutPrecision = 180;
 
+
+    this.playerGain = this.audioContext.createGain();
+    this.playerBinDecoder = new this.ambisonics.monoEncoder(this.audioContext, this.order);
 
     renderInitializationScreens(client, config, $container);
   }
@@ -40,10 +47,7 @@ class PlayerExperience extends AbstractExperience {
   async start() {
     super.start();
 
-
-    this.audioContext = new AudioContext();
-
-    this.monsters.Sounds = await this.audioBufferLoader.load({
+    this.monsters.Scream = await this.audioBufferLoader.load({
       'MonsterSound1': 'Audio/Monster1.mp3',
       'MonsterSound2': 'Audio/Monster2.mp3',
       'MonsterSound3': 'Audio/Monster3.mp3',
@@ -51,26 +55,16 @@ class PlayerExperience extends AbstractExperience {
       'MonsterSound5': 'Audio/Monster5.mp3',
     }, true);
 
-    // this.sound = this.audioContext.createBufferSource();
-    this.monsters.SoundOut = new this.ambisonics.binDecoder(this.audioContext, 2);
-    // this.encoder = new this.ambisonics.monoEncoder(this.audioContext, 2);
-    // this.gain = this.audioContext.createGain();
+    this.soundBank = await this.audioBufferLoader.load({
+      'MonsterDie':'Audio/MonsterDie.wav',
+      'Shoot': 'Audio/Kill.mp3',
+    }, true);
 
-    // this.gain.gain.setValueAtTime(1, 0);
+    this.monsters.OutToRotator = new this.ambisonics.Rotator(this.audioContext, this.order);
 
-    // this.sound.connect(this.encoder.in)
-    // this.encoder.out.connect(this.binDecoder.in)
-    this.monsters.SoundOut.out.connect(this.audioContext.destination)
-    // this.gain.connect(this.audioContext.destination)
-
-
-    // // subscribe to display loading state
-    // this.audioBufferLoader.subscribe(() => this.render());
-    // // subscribe to display loading state
-    // this.filesystem.subscribe(() => this.loadSoundbank());
-
-    // // init with current content
-    // this.loadSoundbank();
+    this.playerGain.connect(this.audioContext.destination);
+    this.monsters.OutToRotator.out.connect(this.playerBinDecoder.in)
+    this.playerBinDecoder.out.connect(this.audioContext.destination)
 
     window.addEventListener('resize', () => this.render());
     this.render();
@@ -102,7 +96,7 @@ class PlayerExperience extends AbstractExperience {
         <input type="button" id="beginButton" value="Validate"/>
         </div>
         <div>
-        <input type="button" id="shootButton" value="Shoot"/>
+        <input type="button" id="shootButton" value="Shoot" style="width: 200px; height: 200px;"/>
         </div>
         <div>
         <input type="range" id="sliderAzimAim" min=0 max=360 value=${this.azimutAim}/>${this.azimutAim}
@@ -133,12 +127,6 @@ class PlayerExperience extends AbstractExperience {
   }
 
   onBeginClicked() {
-    // this.audioContext.resume();
-
-    // this.sound.loop = true;
-    // console.log(this.audio.Shot)
-    // this.sound.buffer = this.audio.Shot;
-    // this.sound.start(0);
 
     console.log("de")
     console.log(this)
@@ -154,17 +142,32 @@ class PlayerExperience extends AbstractExperience {
   onShootClicked() {
     var killing = false;
     var iterator = 0;
+    this.Play(this.soundBank.Shoot);
     while ((iterator < this.monsters.List.length) && (this.monsters.List[iterator].Shoot(this.azimutAim) > this.azimutPrecision)) {
       iterator += 1
     }
     if (iterator < this.monsters.List.length) {
       console.log("You kill a monster")
+      this.Play(this.soundBank.MonsterDie);
       this.monsters.List[iterator].Die();
       this.monsters.List.splice(iterator, 1);
+      console.log(this.monsters.List)
     }
     else {
-      console.log("You miss your shoot !")
+      console.log("You miss your shoot");
+      this.monsters.List = [];
     }
+  }
+
+  Play(buffer) {
+    var Sound = this.audioContext.createBufferSource()
+    Sound.loop = false;
+    Sound.buffer = buffer;
+    Sound.connect(this.playerGain)
+
+    Sound.addEventListener('ended', () => {Sound.disconnect(this.playerGain);})
+
+    Sound.start();
   }
 }
 

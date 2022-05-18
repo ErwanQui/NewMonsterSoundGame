@@ -10,7 +10,7 @@ class Monster {
 
 		this.yell = audioContext.createBufferSource();
 		this.yell.loop = true;
-		this.yell.buffer = data.Sounds["MonsterSound" + Math.ceil(Math.random()*(Object.keys(data.Sounds).length))];
+		this.yell.buffer = data.Scream["MonsterSound" + Math.ceil(Math.random()*(Object.keys(data.Scream).length))];
 		
 		this.lifeTime = data.LifeTime;
 		this.currentAzimutIndex = null;
@@ -19,10 +19,13 @@ class Monster {
 		this.ambisonics = require('ambisonics');
 		this.gain = audioContext.createGain();
 
-		this.encoder = new this.ambisonics.monoEncoder(audioContext, 2);
-		this.encoder.out.connect(data.SoundOut.in);
+		this.encoder = new this.ambisonics.monoEncoder(audioContext, 3);
+		this.encoder.out.connect(data.OutToRotator.in);
 
-		this.disconnect = (() => function() {console.log("devant")})		
+		this.disconnect = function() {
+			this.yell.stop();
+			this.encoder.out.disconnect(data.OutToRotator.in);
+		}		
 
 	}
 
@@ -62,16 +65,11 @@ class Monster {
 		this.currentAzimutIndex += 1;
 		console.log(this.azimuts[this.currentAzimutIndex])
 
-
-      	// this.Sources[i-1].connect(this.gain)
-      	// this.gain.connect(Encoders[i-1].in);
-
-      	// this.Encoders[i-1].out.connect(this.BinDecoders.in);
-      	// this.binDecoder.connect(this.audioContext.destination);
 	}
 
 	Shoot(azimutShootAngle) {
-		return ((Math.abs((this.azimuts[this.currentAzimutIndex] - azimutShootAngle)) + 360)%360);
+		var angleDifference = Math.abs(this.azimuts[this.currentAzimutIndex] - azimutShootAngle);
+		return Math.min(angleDifference, 360 - angleDifference);
 	}
 
 	Die() {

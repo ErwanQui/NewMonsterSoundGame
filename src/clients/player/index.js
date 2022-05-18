@@ -32,6 +32,7 @@ async function launch($container, index) {
         'MonsterSound3': 'Audio/Monster3.mp3',
         'MonsterSound4': 'Audio/Monster4.mp3',
         'MonsterSound5': 'Audio/Monster5.mp3',
+        'MonsterDie':'Audio/MonsterDie.wav',
       }
     }, [])
     
